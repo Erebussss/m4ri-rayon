@@ -1,7 +1,7 @@
 #![feature(portable_simd)]
 use m4ri_rayon::binary_matrix::BinaryMatrix;
-use std::simd::*;
+use std::simd::{num::SimdUint, *};
 fn main() {
-    let test = BinaryMatrix::<u8x32>::new(2, 36);
-    println!("{test:#?}");
+    let si: u8x16 = u8x16::splat(1);
+    println!("{}");
 }

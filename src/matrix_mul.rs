@@ -1,21 +1,16 @@
-use std::{
-    ops::BitXorAssign,
-    simd::{num::SimdUint, SimdElement},
-};
-
 use rayon::prelude::*;
 
 use crate::binary_matrix::BinaryMatrix;
 
-const TABLE_SIZE: usize = 8;
-fn make_table<T>(idx: Vec<usize>, b: &BinaryMatrix<T>) -> Vec<BinaryMatrix<T>>
-where
-    T: SimdElement + SimdUint + BitXorAssign + Send + Sync + Default,
-{
-    let mut tb: Vec<BinaryMatrix<T>> = Vec::new();
+// const TABLE_SIZE: usize = 8;
+// const BLOCK_SIZE: usize = 64;
+// const TABLE_NUM: usize = 8;
+
+fn make_table(idx: Vec<usize>, b: &BinaryMatrix) -> Vec<BinaryMatrix> {
+    let mut tb: Vec<BinaryMatrix> = Vec::new();
     idx.iter().zip(idx.iter().next()).for_each(|(rb, re)| {
         let tbn = re - rb;
-        let tmp: BinaryMatrix<T> = BinaryMatrix::new(1 << tbn, b.ncols);
+        let tmp: BinaryMatrix = BinaryMatrix::new(1 << tbn, b.ncols);
         (0..(1 << tbn)).into_par_iter().for_each(|tbr| {
             let mut tmp = tmp.data[tbr].write().unwrap();
             for i in 0..tbn {
@@ -53,30 +48,18 @@ where
 //     }
 //     c
 // }
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-//     #[test]
-//     fn test_make_table() {
-//         // Create a sample BinaryMatrix
-//         let mut binary_matrix = BinaryMatrix::new(4, 4);
-//         binary_matrix.data[0] = Arc::new(RwLock::new([1, 0, 1, 0]));
-//         binary_matrix.data[1] = Arc::new(RwLock::new([0, 1, 0, 1]));
-//         binary_matrix.data[2] = Arc::new(RwLock::new([1, 1, 0, 0]));
-//         binary_matrix.data[3] = Arc::new(RwLock::new([0, 0, 1, 1]));
-
-//         // Define the index vector
-//         let idx = vec![0, 2];
-
-//         // Call the make_table function
-//         let result = make_table(idx, &binary_matrix);
-
-//         // Assert the result
-//         assert_eq!(result.len(), 2);
-//         assert_eq!(result[0].data[0].read().unwrap(), [1, 0, 1, 0]);
-//         assert_eq!(result[0].data[1].read().unwrap(), [0, 1, 0, 1]);
-//         assert_eq!(result[1].data[0].read().unwrap(), [1, 1, 0, 0]);
-//         assert_eq!(result[1].data[1].read().unwrap(), [0, 0, 1, 1]);
-//     }
-// }
+    #[test]
+    fn test_make_table() {
+        let mut binary_matrix = BinaryMatrix::new(8, 8);
+        binary_matrix.rand();
+        println!("{}", binary_matrix);
+        let idx = vec![0, 8];
+        let result = make_table(idx, &binary_matrix);
+        println!("tablesize:{}", result.len());
+        println!("{}", result[0]);
+    }
+}

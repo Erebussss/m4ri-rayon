@@ -6,6 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-criterion = "0.5.1"
 rayon = "1.8.0"
 rand = "0.8.5"
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "m4rm_rayon"
+harness = false

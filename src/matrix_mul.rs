@@ -2,7 +2,6 @@ use rayon::prelude::*;
 
 use crate::binary_matrix::BinaryMatrix;
 
-const TABLE_SIZE: usize = 8;
 const BLOCK_SIZE: usize = 64;
 const TABLE_NUM: usize = 8;
 
@@ -31,29 +30,36 @@ fn make_table(indices: &[usize; TABLE_NUM + 1], matrix: &BinaryMatrix) -> Vec<Bi
 }
 
 pub fn binary_matrix_m4rm(a: &BinaryMatrix, b: &BinaryMatrix) -> BinaryMatrix {
-    assert!(a.ncols == b.nrows);
-    let mut c = BinaryMatrix::new(a.nrows, b.ncols);
-    for now_block_row in (0..b.nrows).step_by(BLOCK_SIZE) {
-        let now_row = BLOCK_SIZE.min(b.nrows - now_block_row);
-        let mut indices = [now_row / 8; 9];
+    assert_eq!(a.ncols, b.nrows);
+    let result = BinaryMatrix::new(a.nrows, b.ncols);
+    (0..b.nrows).step_by(BLOCK_SIZE).for_each(|block_row| {
+        let row_count = BLOCK_SIZE.min(b.nrows - block_row);
+        let mut indices = [row_count / TABLE_NUM; TABLE_NUM + 1];
         indices[0] = 0;
-        for i in 1..8 {
+        (1..indices.len()).for_each(|i| {
             indices[i] += indices[i - 1];
-            if i <= now_row % 8 {
+            if i <= row_count % TABLE_NUM {
                 indices[i] += 1;
             }
-        }
-        assert!(indices[8] == now_row);
+        });
+        assert_eq!(indices[TABLE_NUM], row_count);
 
         let table = make_table(&indices, b);
+        let block = block_row / BLOCK_SIZE;
 
         (0..a.nrows).into_par_iter().for_each(|r| {
-            let mut tmp_row = c.data[r].write().unwrap();
-            let now_block = now_block_row / BLOCK_SIZE;
-            let idx = a.data[r].read().unwrap();
-        })
-    }
-    c
+            let mut dst_row = result.data[r].write().unwrap();
+            let idx = a.data[r].read().unwrap()[block] as usize;
+            (0..(indices.len() - 1)).for_each(|i| {
+                let src_row = (idx << indices[i]) >> (BLOCK_SIZE - (indices[i + 1] - indices[i]));
+                let src_row = table[i].data[src_row].read().unwrap();
+                (0..result.width).for_each(|j| {
+                    dst_row[j] ^= src_row[j];
+                });
+            });
+        });
+    });
+    result
 }
 
 #[cfg(test)]
@@ -71,5 +77,16 @@ mod tests {
         for i in result {
             println!("{}", i);
         }
+    }
+    #[test]
+    fn test_m4rm() {
+        let mut binary_matrix1 = BinaryMatrix::new(8, 8);
+        binary_matrix1.rand();
+        println!("{}", binary_matrix1);
+        let mut binary_matrix2 = BinaryMatrix::new(8, 8);
+        binary_matrix2.rand();
+        println!("{}", binary_matrix2);
+        let result = binary_matrix_m4rm(&binary_matrix1, &binary_matrix2);
+        println!("{}", result);
     }
 }

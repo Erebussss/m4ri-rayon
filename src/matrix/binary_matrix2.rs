@@ -1,10 +1,15 @@
 use rand::Rng;
 use rayon::prelude::*;
-use std::fmt::{self, Display};
+use serde::{Deserialize, Serialize};
+use std::{
+    fmt::{self, Display},
+    fs::File,
+    io::prelude::*,
+};
 
 use super::BLOCK_SIZE;
 use super::TABLE_NUM;
-
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BinaryMatrix2 {
     pub nrows: usize,
     pub ncols: usize,
@@ -22,6 +27,29 @@ impl BinaryMatrix2 {
             width,
             data,
         }
+    }
+    pub fn from(nrows: usize, ncols: usize, data: Vec<u64>) -> BinaryMatrix2 {
+        let width = (ncols + 63) / 64;
+        assert_eq!(data.len(), nrows * width);
+        BinaryMatrix2 {
+            nrows,
+            ncols,
+            width,
+            data,
+        }
+    }
+    pub fn write_to_file(&self, path: &str) -> std::io::Result<()> {
+        let encoded: Vec<u8> = bincode::serialize(self).unwrap();
+        let mut file = File::create(path)?;
+        file.write_all(&encoded)?;
+        Ok(())
+    }
+    pub fn read_from_file(path: &str) -> std::io::Result<Self> {
+        let mut file = File::open(path)?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)?;
+        let matrix: BinaryMatrix2 = bincode::deserialize(&buffer).unwrap();
+        Ok(matrix)
     }
     pub fn rand(&mut self) {
         self.data.par_chunks_exact_mut(self.width).for_each(|row| {
@@ -94,6 +122,16 @@ impl BinaryMatrix2 {
         result
     }
 }
+
+impl PartialEq for BinaryMatrix2 {
+    fn eq(&self, other: &Self) -> bool {
+        if self.nrows != other.nrows || self.ncols != other.ncols {
+            return false;
+        }
+        self.data == other.data
+    }
+}
+
 impl Display for BinaryMatrix2 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for row in self.data.chunks(self.width) {
@@ -113,13 +151,13 @@ impl Display for BinaryMatrix2 {
 mod tests {
     use super::*;
     #[test]
-    fn test_rand2() {
+    fn test_rand() {
         let mut m = BinaryMatrix2::new(10, 100);
         m.rand();
         println!("{}", m);
     }
     #[test]
-    fn test_make_table2() {
+    fn test_make_table() {
         let mut binary_matrix = BinaryMatrix2::new(8, 8);
         binary_matrix.rand();
         println!("{}", binary_matrix);
@@ -131,7 +169,7 @@ mod tests {
         }
     }
     #[test]
-    fn test_m4rm2() {
+    fn test_m4rm() {
         let size = 128;
         let mut binary_matrix1 = BinaryMatrix2::new(size, size);
         binary_matrix1.rand();
@@ -141,5 +179,14 @@ mod tests {
         println!("{}", binary_matrix2);
         let result = binary_matrix1.m4rm(&binary_matrix2);
         println!("{}", result);
+    }
+    #[test]
+    fn test_file() {
+        let mut matrix = BinaryMatrix2::new(100, 100);
+        matrix.rand();
+        matrix.write_to_file("test.bin").unwrap();
+        let matrix2 = BinaryMatrix2::read_from_file("test.bin").unwrap();
+        assert_eq!(matrix, matrix2);
+        std::fs::remove_file("test.bin").unwrap();
     }
 }

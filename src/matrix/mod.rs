@@ -1,5 +1,3 @@
-#[deprecated]
-pub mod binary_matrix1;
 pub mod binary_matrix2;
 
 const BLOCK_SIZE: usize = 64;
